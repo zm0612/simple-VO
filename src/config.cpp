@@ -21,7 +21,8 @@
 
 namespace myslam 
 {
-    
+
+//构造Config对象，然后读取加载配置文件
 void Config::setParameterFile( const std::string& filename )
 {
     if ( config_ == nullptr )
@@ -35,12 +36,14 @@ void Config::setParameterFile( const std::string& filename )
     }
 }
 
+//析构函数：当Config对象消亡的时候，自动调用这个函数
 Config::~Config()
 {
     if ( file_.isOpened() )
         file_.release();
 }
 
+//静态成员变量的类外初始化
 shared_ptr<Config> Config::config_ = nullptr;
 
 }

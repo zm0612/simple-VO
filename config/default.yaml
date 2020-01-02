@@ -1,7 +1,7 @@
 %YAML:1.0
 # data
 # the tum dataset directory, change it to yours! 
-dataset_dir: /home/xiang/dataset/rgbd_dataset_freiburg1_desk
+dataset_dir: /home/meng/CLionProjects/project/0.4/bin/rgbd_dataset_freiburg1_desk
 
 # camera intrinsics
 # fr1

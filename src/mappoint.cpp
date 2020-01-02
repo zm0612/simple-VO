@@ -29,10 +29,11 @@ MapPoint::MapPoint()
 
 }
 
+//构造函数
 MapPoint::MapPoint ( long unsigned int id, const Vector3d& position, const Vector3d& norm, Frame* frame, const Mat& descriptor )
 : id_(id), pos_(position), norm_(norm), good_(true), visible_times_(1), matched_times_(1), descriptor_(descriptor)
 {
-    observed_frames_.push_back(frame);
+    observed_frames_.push_back(frame);//当前frame可以观察到。这里不同于在视野内
 }
 
 MapPoint::Ptr MapPoint::createMapPoint()
@@ -42,6 +43,7 @@ MapPoint::Ptr MapPoint::createMapPoint()
     );
 }
 
+//构造MapPoint对象，并进行参数化
 MapPoint::Ptr MapPoint::createMapPoint ( 
     const Vector3d& pos_world, 
     const Vector3d& norm, 

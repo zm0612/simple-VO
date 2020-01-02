@@ -50,7 +50,8 @@ public:
         Frame* frame=nullptr, 
         const Mat& descriptor=Mat() 
     );
-    
+
+    //将Eigen表示方法转换成OpenCV方式
     inline cv::Point3f getPositionCV() const {
         return cv::Point3f( pos_(0,0), pos_(1,0), pos_(2,0) );
     }

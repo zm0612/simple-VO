@@ -24,10 +24,15 @@
 
 namespace myslam 
 {
+
+//Config被写成了单件模式，它只有一个全局对象。因为构造函数被声明为私有，
+//所以只能通过类中的静态函数setParameterFile进行构造，可以防止这个类在
+//别的地方被建立
 class Config
 {
 private:
-    static std::shared_ptr<Config> config_; 
+    //静态成员变量必须在类外进行初始化
+    static std::shared_ptr<Config> config_; //静态的全局指针变量，智能指针可以自动析构
     cv::FileStorage file_;
     
     Config () {} // private constructor makes a singleton
@@ -38,6 +43,7 @@ public:
     static void setParameterFile( const std::string& filename ); 
     
     // access the parameter values
+    //根据配置文件中的名称获得它对应的数值
     template< typename T >
     static T get( const std::string& key )
     {

@@ -2,6 +2,8 @@
 
 namespace myslam
 {
+
+//计算像素残差
 void EdgeProjectXYZRGBD::computeError()
 {
     const g2o::VertexSBAPointXYZ* point = static_cast<const g2o::VertexSBAPointXYZ*> ( _vertices[0] );

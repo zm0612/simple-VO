@@ -30,6 +30,7 @@
 namespace myslam
 {
 
+//构造函数
 VisualOdometry::VisualOdometry() :
     state_ ( INITIALIZING ), ref_ ( nullptr ), curr_ ( nullptr ), map_ ( new Map ), num_lost_ ( 0 ), num_inliers_ ( 0 ), matcher_flann_ ( new cv::flann::LshIndexParams ( 5,10,2 ) )
 {
@@ -50,11 +51,12 @@ VisualOdometry::~VisualOdometry()
 
 }
 
+//重要函数!!!
 bool VisualOdometry::addFrame ( Frame::Ptr frame )
 {
-    switch ( state_ )
+    switch ( state_ )//根据当前VO状态，选择不同的代码运行
     {
-    case INITIALIZING:
+    case INITIALIZING://未初始化时候
     {
         state_ = OK;
         curr_ = ref_ = frame;
@@ -64,10 +66,10 @@ bool VisualOdometry::addFrame ( Frame::Ptr frame )
         addKeyFrame();      // the first frame is a key-frame
         break;
     }
-    case OK:
+    case OK://VO状态为已经初始化之后，并且正常运行的时候
     {
         curr_ = frame;
-        curr_->T_c_w_ = ref_->T_c_w_;
+        curr_->T_c_w_ = ref_->T_c_w_;//当前frame的Tcw等于参考关键帧的Tcw，相当于给了一个初始值
         extractKeyPoints();
         computeDescriptors();
         featureMatching();
@@ -117,6 +119,7 @@ void VisualOdometry::computeDescriptors()
     cout<<"descriptor computation cost time: "<<timer.elapsed() <<endl;
 }
 
+//和Map中的点进行匹配
 void VisualOdometry::featureMatching()
 {
     boost::timer timer;
@@ -124,6 +127,8 @@ void VisualOdometry::featureMatching()
     // select the candidates in map 
     Mat desp_map;
     vector<MapPoint::Ptr> candidate;
+
+    //找出Map中所有在当前帧视野范围内的特征点
     for ( auto& allpoints: map_->map_points_ )
     {
         MapPoint::Ptr& p = allpoints.second;
@@ -136,7 +141,8 @@ void VisualOdometry::featureMatching()
             desp_map.push_back( p->descriptor_ );
         }
     }
-    
+
+    //然后采用FLANNd对地图中候选的描述子和当前图片的描述子进行匹配
     matcher_flann_.match ( desp_map, descriptors_curr_, matches );
     // select the best matches
     float min_dis = std::min_element (
@@ -181,6 +187,8 @@ void VisualOdometry::poseEstimationPnP()
               0,0,1
             );
     Mat rvec, tvec, inliers;
+
+    //通过RANSAC的方式求解3D点到2D点的变换矩阵
     cv::solvePnPRansac ( pts3d, pts2d, K, Mat(), rvec, tvec, false, 100, 4.0, 0.99, inliers );
     num_inliers_ = inliers.rows;
     cout<<"pnp inliers: "<<num_inliers_<<endl;
@@ -191,9 +199,9 @@ void VisualOdometry::poseEstimationPnP()
 
     // using bundle adjustment to optimize the pose
     typedef g2o::BlockSolver<g2o::BlockSolverTraits<6,2>> Block;
-    Block::LinearSolverType* linearSolver = new g2o::LinearSolverDense<Block::PoseMatrixType>();
-    Block* solver_ptr = new Block ( linearSolver );
-    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg ( solver_ptr );
+    std::unique_ptr<Block::LinearSolverType> linearSolver( new g2o::LinearSolverDense<Block::PoseMatrixType>());
+    std::unique_ptr<Block> solver_ptr( new Block ( std::move(linearSolver) ));
+    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg ( std::move(solver_ptr) );
     g2o::SparseOptimizer optimizer;
     optimizer.setAlgorithm ( solver );
 
@@ -232,6 +240,7 @@ void VisualOdometry::poseEstimationPnP()
     cout<<"T_c_w_estimated_: "<<endl<<T_c_w_estimated_.matrix()<<endl;
 }
 
+//通过内点来判断当前位姿估计是否适合
 bool VisualOdometry::checkEstimatedPose()
 {
     // check if the estimated pose is good
@@ -251,6 +260,9 @@ bool VisualOdometry::checkEstimatedPose()
     return true;
 }
 
+//检查是否是关键帧，
+// 如果当前帧相对于关键帧的旋转大于key_frame_min_rot或者
+// 如果当前帧相对于关键帧的平移大于key_frame_min_trans，则认为当前帧是关键帧
 bool VisualOdometry::checkKeyFrame()
 {
     SE3 T_r_c = ref_->T_c_w_ * T_c_w_estimated_.inverse();
@@ -275,7 +287,7 @@ void VisualOdometry::addKeyFrame()
             Vector3d p_world = ref_->camera_->pixel2world (
                 Vector2d ( keypoints_curr_[i].pt.x, keypoints_curr_[i].pt.y ), curr_->T_c_w_, d
             );
-            Vector3d n = p_world - ref_->getCamCenter();
+            Vector3d n = p_world - ref_->getCamCenter();//地图点的方向，从当前相机光心指向地图点
             n.normalize();
             MapPoint::Ptr map_point = MapPoint::createMapPoint(
                 p_world, n, descriptors_curr_.row(i).clone(), curr_.get()
@@ -288,6 +300,9 @@ void VisualOdometry::addKeyFrame()
     ref_ = curr_;
 }
 
+//增加地图点
+//匹配上的关键点说明地图中已经有地图点了，不需要再添加了
+//那些没有匹配上的特征点，说明地图中没有，此时就需要将它加入地图中
 void VisualOdometry::addMapPoints()
 {
     // add the new map points into map
@@ -314,6 +329,12 @@ void VisualOdometry::addMapPoints()
     }
 }
 
+//优化地图，由于我们维护的是一个局部地图，所以要不断地对地图点做删减
+//不在当前帧视野中的点将其删掉；
+//匹配的次数除以被观测到的次数除以被观测的次数小于一定比率删掉；
+//地图点方向和相机到地图点方向的夹角大于pi/6删掉；
+
+//如果当前帧和参考关键帧匹配的点太少就增加地图点
 void VisualOdometry::optimizeMap()
 {
     // remove the hardly seen and no visible points 
@@ -356,6 +377,7 @@ void VisualOdometry::optimizeMap()
     cout<<"map points: "<<map_->map_points_.size()<<endl;
 }
 
+//地图点的方向和当前相机到地图点的方向的夹角
 double VisualOdometry::getViewAngle ( Frame::Ptr frame, MapPoint::Ptr point )
 {
     Vector3d n = point->pos_ - frame->getCamCenter();

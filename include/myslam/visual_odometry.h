@@ -31,7 +31,7 @@ class VisualOdometry
 {
 public:
     typedef shared_ptr<VisualOdometry> Ptr;
-    enum VOState {
+    enum VOState {//VO状态
         INITIALIZING=-1,
         OK=0,
         LOST
@@ -47,7 +47,7 @@ public:
     vector<cv::KeyPoint>    keypoints_curr_;    // keypoints in current frame
     Mat                     descriptors_curr_;  // descriptor in current frame 
     
-    cv::FlannBasedMatcher   matcher_flann_;     // flann matcher
+    cv::FlannBasedMatcher   matcher_flann_;     // flann matcher，最近邻匹配器
     vector<MapPoint::Ptr>   match_3dpts_;       // matched 3d points 
     vector<int>             match_2dkp_index_;  // matched 2d pixels (index of kp_curr)
    

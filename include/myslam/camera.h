@@ -30,7 +30,8 @@ class Camera
 {
 public:
     typedef std::shared_ptr<Camera> Ptr;
-    float   fx_, fy_, cx_, cy_, depth_scale_;
+    float   fx_, fy_, cx_, cy_;//相机内参
+    float depth_scale_;//图像像素值到距离之间转换系数
 
     Camera();
     Camera ( float fx, float fy, float cx, float cy, float depth_scale=0 ) :
